@@ -13,9 +13,16 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         val images = listOf(
-            R.drawable.image1,
-            R.drawable.image2,
-            R.drawable.image3
+            R.drawable.aapl,
+            R.drawable.ibm,
+            R.drawable.nvda,
+            R.drawable.tlsa,
+            R.drawable.save,
+            R.drawable.mara,
+            R.drawable.djt,
+            R.drawable.bivi,
+            R.drawable.plug,
+            R.drawable.pltr,
         )
 
         val viewPager: ViewPager2 = findViewById(R.id.viewPager)
