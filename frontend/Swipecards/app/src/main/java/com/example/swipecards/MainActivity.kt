@@ -1,47 +1,35 @@
 package com.example.swipecards
 
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
-import com.example.swipecards.ui.theme.SwipeCardsTheme
+import android.widget.Button
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.viewpager2.widget.ViewPager2
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            SwipeCardsTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
-            }
+        setContentView(R.layout.activity_main)
+
+        val images = listOf(
+            R.drawable.image1,
+            R.drawable.image2,
+            R.drawable.image3
+        )
+
+        val viewPager: ViewPager2 = findViewById(R.id.viewPager)
+        viewPager.adapter = ImageAdapter(images)
+
+        val btnReject: Button = findViewById(R.id.btnReject)
+        val btnAccept: Button = findViewById(R.id.btnAccept)
+
+        btnReject.setOnClickListener {
+            Toast.makeText(this, "Rejected", Toast.LENGTH_SHORT).show()
         }
-    }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    SwipeCardsTheme {
-        Greeting("Android")
+        btnAccept.setOnClickListener {
+            Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+        }
     }
 }
