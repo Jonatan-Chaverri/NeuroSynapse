@@ -28,15 +28,19 @@ class MainActivity : AppCompatActivity() {
         val viewPager: ViewPager2 = findViewById(R.id.viewPager)
         viewPager.adapter = ImageAdapter(images)
 
+        viewPager.getChildAt(0).setOnTouchListener { _, _ -> true }
+
         val btnReject: Button = findViewById(R.id.btnReject)
         val btnAccept: Button = findViewById(R.id.btnAccept)
 
         btnReject.setOnClickListener {
             Toast.makeText(this, "Rejected", Toast.LENGTH_SHORT).show()
+            viewPager.currentItem = viewPager.currentItem + 1
         }
 
         btnAccept.setOnClickListener {
             Toast.makeText(this, "Accepted", Toast.LENGTH_SHORT).show()
+            viewPager.currentItem = viewPager.currentItem + 1
         }
     }
 }
