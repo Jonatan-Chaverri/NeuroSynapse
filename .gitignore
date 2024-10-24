@@ -61,3 +61,9 @@
 # OS-specific files
 *.DS_Store
 *Thumbs.db
+
+.env
+
+*cache/
+*artifacts/
+*node_modules/
