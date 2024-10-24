@@ -4,6 +4,7 @@ pragma solidity ^0.8.7;
 import {Chainlink, ChainlinkClient} from "@chainlink/contracts/src/v0.8/ChainlinkClient.sol";
 import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/ConfirmedOwner.sol";
 import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/shared/interfaces/LinkTokenInterface.sol";
+import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
     using Chainlink for Chainlink.Request;
@@ -15,6 +16,10 @@ contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
 
     bytes32 private jobId;
     uint256 private fee;
+
+    AggregatorV3Interface internal ethUsdPriceFeed;
+    uint256 public stockPriceInEth;
+    mapping(string => uint256) public sym_eth_price_map;
 
     /**
      * @notice Initialize the link token and target oracle
@@ -33,6 +38,8 @@ contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
         _setChainlinkOracle(0x6090149792dAAeE9D1D568c9f9a6F6B46AA29eFD);
         jobId = "7da2702f37fd48e5b1b9a5715e3509b6";
         fee = (1 * LINK_DIVISIBILITY) / 10; // 0,1 * 10**18 (Varies by network and job)
+
+        ethUsdPriceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
     }
 
     /**
@@ -58,6 +65,7 @@ contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
     }
 
     event RequestFulfilled(bytes32 indexed requestId, bytes indexed data);
+    event PriceConverted(uint256 priceInUsd, uint256 priceInEth);
 
     /**
      * @notice Fulfillment function for variable bytes
@@ -70,7 +78,135 @@ contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
         emit RequestFulfilled(requestId, bytesData);
         response_data = bytesData;
         stock_target_price = string(response_data);
+
+        convertUsdToEth();
     }
+
+    /**
+     * @notice Converts the stock target price from USD to ETH
+     * @dev Uses Chainlink Price Feed to get the latest ETH/USD price
+     */
+    function convertUsdToEth() internal {
+        // Parse the USD string to uint
+        uint256 priceInUsd = parseUsdString(stock_target_price);
+        
+        // Get the latest ETH/USD price from Chainlink
+        (
+            /* uint80 roundID */,
+            int256 ethUsdPrice,
+            /*uint startedAt*/,
+            /*uint timeStamp*/,
+            /*uint80 answeredInRound*/
+        ) = ethUsdPriceFeed.latestRoundData();
+        
+        require(ethUsdPrice > 0, "Invalid ETH/USD price");
+        
+        // Convert USD to ETH (with 18 decimals)
+        // price from chainlink comes with 8 decimals, so it is divided by 1e8 to get ETH.
+        stockPriceInEth = (priceInUsd * 1e8) / uint256(ethUsdPrice);
+        sym_eth_price_map[symbol_str] = stockPriceInEth;
+        
+        emit PriceConverted(priceInUsd, stockPriceInEth);
+    }
+/**
+     * @notice Parses a USD string price to uint256
+     * @param _priceString The USD price string (e.g., "150.75")
+     * @return uint256 The price in wei (multiplied by 1e18)
+     */
+    function parseUsdString(string memory _priceString) internal pure returns (uint256) {
+        bytes memory priceBytes = bytes(_priceString);
+        uint256 decimal = 0;
+        uint256 result = 0;
+        bool decimalPoint = false;
+        
+        for (uint i = 0; i < priceBytes.length; i++) {
+            if (priceBytes[i] == ".") {
+                decimalPoint = true;
+                continue;
+            }
+            
+            if (priceBytes[i] >= "0" && priceBytes[i] <= "9") {
+                result = result * 10 + (uint8(priceBytes[i]) - 48);
+                if (decimalPoint) {
+                    decimal++;
+                }
+            }
+        }
+        
+        // Adjust to 18 decimals
+        while (decimal < 18) {
+            result *= 10;
+            decimal++;
+        }
+        
+        return result;
+    }
+
+    /**
+     * @notice Returns the stock price components for better decimal handling
+     * @return whole The whole number part of ETH
+     * @return decimal The decimal part with 18 digits precision
+     */
+    function getStockPriceComponents() public view returns (uint256 whole, uint256 decimal) {
+        whole = stockPriceInEth / 1e18;
+        decimal = stockPriceInEth % 1e18;
+        return (whole, decimal);
+    }
+
+    /**
+     * @notice Returns the stock price formatted as a string with 4 decimal places
+     * @return string The ETH price as a string (e.g., "0.5431")
+     */
+    function getStockPriceString() public view returns (string memory) {
+        uint256 whole = stockPriceInEth / 1e18;
+        uint256 decimal = stockPriceInEth % 1e18;
+        
+        // Convert to 4 decimal places
+        decimal = decimal / 1e14;  // Reduce from 18 to 4 decimal places
+        
+        // Convert to string
+        string memory wholeStr = uint2str(whole);
+        string memory decimalStr = uint2str(decimal);
+        
+        // Pad decimals with leading zeros if needed
+        while (bytes(decimalStr).length < 4) {
+            decimalStr = string(bytes.concat(bytes("0"), bytes(decimalStr)));
+        }
+        
+        return string(bytes.concat(bytes(wholeStr), bytes("."), bytes(decimalStr)));
+    }
+
+    /**
+     * @notice Helper function to convert uint to string
+     */
+    function uint2str(uint256 _i) internal pure returns (string memory str) {
+        if (_i == 0) {
+            return "0";
+        }
+        uint256 j = _i;
+        uint256 length;
+        while (j != 0) {
+            length++;
+            j /= 10;
+        }
+        bytes memory bstr = new bytes(length);
+        uint256 k = length;
+        j = _i;
+        while (j != 0) {
+            bstr[--k] = bytes1(uint8(48 + j % 10));
+            j /= 10;
+        }
+        str = string(bstr);
+    }
+
+    /**
+     * @notice Returns the latest stock price in ETH
+     * @return uint256 The stock price in ETH (18 decimals)
+     */
+    function getStockPriceInEth() public view returns (uint256) {
+        return stockPriceInEth / 1e18;
+    }
+
 
     /**
      * Allow withdraw of Link tokens from the contract
