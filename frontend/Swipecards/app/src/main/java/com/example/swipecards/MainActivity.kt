@@ -51,7 +51,6 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "NFT ready", Toast.LENGTH_SHORT).show()
         }
 
-
         val images = listOf(
             R.drawable.aapl,
             R.drawable.ibm,
@@ -105,7 +104,11 @@ class MainActivity : AppCompatActivity() {
                 if (address != null) {
                     Log.i("test", "Address: $address")
                     Log.i("test", "Ethereum Address: $ethereumAddress")
-                    Toast.makeText(this, "Address matches: ${address == ethereumAddress}", Toast.LENGTH_LONG).show()
+                    if (address.lowercase() == ethereumAddress.lowercase()){
+                        Toast.makeText(this, "Buy success", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this, "Authentication failed", Toast.LENGTH_LONG).show()
+                    }
                 }
             } else {
                 Toast.makeText(this, "Failed to get Ethereum Address", Toast.LENGTH_LONG).show()
