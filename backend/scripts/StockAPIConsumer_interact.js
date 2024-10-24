@@ -20,6 +20,10 @@ async function main() {
   await contractInstance.requestStockTargetPriceBySymbol("IBM");
   const price = await contractInstance.stock_target_price();
   console.log("The stock_target_price is: " + price);
+  const stockPriceInEth = await contractInstance.stockPriceInEth();
+  console.log("The stockPriceInEth in ETH is: " + stockPriceInEth);
+  const responseGetStockPriceInEth = await contractInstance.getStockPriceInEth();
+  console.log("The getStockPriceInEth in ETH is: " + responseGetStockPriceInEth);
 }
 main();
 
