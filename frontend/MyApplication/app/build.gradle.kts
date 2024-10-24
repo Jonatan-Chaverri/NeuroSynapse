@@ -54,6 +54,8 @@ dependencies {
         // Exclude one version of BouncyCastle that causes the conflict
         exclude(group = "org.bouncycastle", module = "bcprov-jdk15to18")
     }
+    implementation("io.metamask.androidsdk:metamask-android-sdk:0.6.6")
+    implementation("org.web3j:core:4.9.4")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)

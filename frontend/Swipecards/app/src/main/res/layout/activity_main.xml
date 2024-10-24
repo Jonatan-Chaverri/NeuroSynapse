@@ -4,6 +4,27 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <!-- Logout button -->
+    <Button
+        android:id="@+id/btnLogout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Logout"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
+        android:layout_margin="16dp"
+        android:textSize="16sp" />
+
+    <Button
+        android:id="@+id/btnRefresh"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="11dp"
+        android:layout_marginRight="11dp"
+        android:text="Refresh prices"
+        android:textSize="16sp" />
+
     <androidx.cardview.widget.CardView
         android:id="@+id/cardView"
         android:layout_width="395dp"
@@ -39,7 +60,9 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Reject" />
+            android:background="@android:color/holo_red_light"
+            android:textColor="@android:color/white"
+            android:text="Pass" />
 
         <Button
             android:id="@+id/btnAccept"
@@ -47,6 +70,8 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Accept" />
+            android:background="@android:color/holo_green_dark"
+            android:textColor="@android:color/white"
+            android:text="Buy" />
     </LinearLayout>
 </RelativeLayout>

@@ -4,3 +4,14 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.compose) apply false
 }
+
+subprojects {
+    configurations.all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "org.bouncycastle") {
+                useVersion("1.68")
+                because("Avoiding duplicate classes from different versions")
+            }
+        }
+    }
+}

@@ -8,4 +8,17 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/priceTag"
+        android:layout_width="398dp"
+        android:layout_height="84dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:alpha="0.7"
+        android:background="@android:color/black"
+        android:gravity="center"
+        android:padding="8dp"
+        android:text="$200"
+        android:textColor="@android:color/white"
+        android:textSize="24sp" />
 </FrameLayout>
