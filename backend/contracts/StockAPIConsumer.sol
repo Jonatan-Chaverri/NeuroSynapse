@@ -6,6 +6,15 @@ import {ConfirmedOwner} from "@chainlink/contracts/src/v0.8/shared/access/Confir
 import {LinkTokenInterface} from "@chainlink/contracts/src/v0.8/shared/interfaces/LinkTokenInterface.sol";
 import "@chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
+interface IStockNFT {
+    function mintStockNFT(
+        address to,
+        string memory stockSymbol,
+        uint256 quantity,
+        uint256 currentPrice
+    ) external returns (uint256);
+}
+
 contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
     using Chainlink for Chainlink.Request;
 
@@ -21,6 +30,11 @@ contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
     uint256 public stockPriceInEth;
     mapping(string => uint256) public sym_eth_price_map;
 
+    address public stockNFT_address;
+    mapping(string => uint256) public address_nft_id_map;
+
+    event StockBought(address buyer, string symbol, uint256 amount, uint256 eth_price);
+
     /**
      * @notice Initialize the link token and target oracle
      * @dev The oracle address must be an Operator contract for multiword response
@@ -33,13 +47,53 @@ contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
      * jobId: 7da2702f37fd48e5b1b9a5715e3509b6
      *
      */
-    constructor() ConfirmedOwner(msg.sender) {
+    constructor(address _stockNFTContractAddress) ConfirmedOwner(msg.sender) {
         _setChainlinkToken(0x779877A7B0D9E8603169DdbD7836e478b4624789);
         _setChainlinkOracle(0x6090149792dAAeE9D1D568c9f9a6F6B46AA29eFD);
         jobId = "7da2702f37fd48e5b1b9a5715e3509b6";
         fee = (1 * LINK_DIVISIBILITY) / 10; // 0,1 * 10**18 (Varies by network and job)
 
         ethUsdPriceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
+        stockNFT_address = _stockNFTContractAddress;
+    }
+
+    /**
+     * @notice Buy stock and mint token from StockNFT ERC721 contract
+     */
+    function buyStock(string memory symbol, uint256 amount) payable public {
+        // assert(amount > 0, "Amount should be greater than 0");
+        assert(amount > 0);
+        // Buy stock
+        // Logic to get price from the map
+        uint256 eth_price = sym_eth_price_map[symbol];
+        uint256 total_price = eth_price * amount;
+
+        // Ask the user to send the total_price amount of ETH to the contract
+
+
+        // Check if the user has sent the total_price amount of ETH to the contract
+        require(msg.value == total_price, "Insufficient ETH sent");
+        // Execute the transaction to buy the stock
+        // Transfer ETH amount to the contract
+
+        address userAddress = msg.sender;
+
+        // Redundant code, as the transfer happens already thanks to payable
+        // address payable contract_address = payable(address(this));
+        // contract_address.transfer(total_price);
+
+        // Mint NFT
+        // uint256 tokenId = IStockNFT(stockNFT_address).mintStockNFT(userAddress, symbol, amount, eth_price);
+        // address_nft_id_map[symbol] = tokenId;
+        // Invoke the mintStockNFT function of the StockNFT contract
+        try IStockNFT(stockNFT_address).mintStockNFT(userAddress, symbol, amount, eth_price) {
+            emit StockBought(userAddress, symbol, amount, eth_price);
+            // Mint successful
+        } catch {
+            // Mint failed
+            revert("IStockNFT Mint failed");
+        }
+        // uint256 tokenId = IStockNFT(stockNFT_address).mintStockNFT(userAddress, symbol, amount, eth_price);
     }
 
     /**
@@ -104,7 +158,8 @@ contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
         // Convert USD to ETH (with 18 decimals)
         // price from chainlink comes with 8 decimals, so it is divided by 1e8 to get ETH.
         stockPriceInEth = (priceInUsd * 1e8) / uint256(ethUsdPrice);
-        sym_eth_price_map[symbol_str] = stockPriceInEth;
+        // sym_eth_price_map[symbol_str] = getStockPriceInEth();
+        sym_eth_price_map[symbol_str] = 0;
         
         emit PriceConverted(priceInUsd, stockPriceInEth);
     }
@@ -217,5 +272,12 @@ contract StockAPIConsumer is ChainlinkClient, ConfirmedOwner {
             link.transfer(msg.sender, link.balanceOf(address(this))),
             "Unable to transfer"
         );
+    }
+
+    /**
+     * Allow withdraw of Link tokens from the contract
+     */
+    function withdrawEth() public onlyOwner {
+        payable(msg.sender).transfer(address(this).balance);
     }
 }
