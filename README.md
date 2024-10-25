@@ -27,3 +27,12 @@ To securely connect this data with our smart contracts, we leverage Chainlink Or
 
 - **Polygon API Documentation:**: https://polygon.io/docs/stocks/getting-started
 - **Chainlink Oracles Documentation:**: https://docs.chain.link/any-api/get-request/examples/single-word-response/
+
+
+## TinderStock Diagrams
+
+### StockAPI
+![StockAPI](stock-api.jpg)
+
+### StockNFT
+![StockNFT](stock-nft.jpg)
