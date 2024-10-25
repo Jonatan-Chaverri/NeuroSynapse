@@ -20,7 +20,7 @@ class WalletConnectActivity : AppCompatActivity() {
         setContentView(R.layout.activity_wallet_connect)
 
         // Set up Ethereum object for MetaMask connection
-        val dappMetadata = DappMetadata("NeuroSynapse", "https://www.neurosynapse.io")
+        val dappMetadata = DappMetadata("TinderStock", "https://www.neurosynapse.io")
         val infuraAPIKey = "1234567890"
         val readonlyRPCMap = mapOf("0x1" to "https://www.testrpc.com")
         ethereum = Ethereum(this, dappMetadata, SDKOptions(infuraAPIKey, readonlyRPCMap))

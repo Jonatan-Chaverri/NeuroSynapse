@@ -33,11 +33,15 @@ import org.web3j.abi.datatypes.Utf8String
 import org.web3j.abi.datatypes.generated.Uint256
 import org.web3j.utils.Numeric
 import java.lang.Thread.sleep
+import java.math.BigDecimal
 import java.math.BigInteger
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var ethereumAddress: String
+    companion object {
+        const val API_CONTRACT_ADDRESS = "0x837b764C97F542bC881ac010C5984b187704d3E4"
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +100,11 @@ class MainActivity : AppCompatActivity() {
             Log.i("test", "Wallet connected")
         }
 
+        var stockSymbols = listOf("AAPL", "IBM", "NVDA", "TSLA", "SAVE", "MARA", "DJT", "BIVI", "PLUG", "PLTR")
+
+        val viewPager: ViewPager2 = findViewById(R.id.viewPager)
+        viewPager.getChildAt(0).setOnTouchListener { _, _ -> true }
+
         // Register the activity result launcher to handle result from NFCAuthActivity
         val nfcAuthLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == RESULT_OK) {
@@ -105,7 +114,13 @@ class MainActivity : AppCompatActivity() {
                     Log.i("test", "Address: $address")
                     Log.i("test", "Ethereum Address: $ethereumAddress")
                     if (address.lowercase() == ethereumAddress.lowercase()){
-                        Toast.makeText(this, "Buy success", Toast.LENGTH_LONG).show()
+                        getStockPriceWei(ethereum, ethereumAddress) { price ->
+                            Log.i("test", "price obtained success $price")
+                            buyStock(ethereum, stockSymbols.get(viewPager.currentItem), ethereumAddress, price) {
+                                Log.i("test", "buy success")
+                                Toast.makeText(this, "Buy success", Toast.LENGTH_LONG).show()
+                            }
+                        }
                     } else {
                         Toast.makeText(this, "Authentication failed", Toast.LENGTH_LONG).show()
                     }
@@ -115,11 +130,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val viewPager: ViewPager2 = findViewById(R.id.viewPager)
-
-
-        viewPager.getChildAt(0).setOnTouchListener { _, _ -> true }
-
         val btnReject: Button = findViewById(R.id.btnReject)
         val btnAccept: Button = findViewById(R.id.btnAccept)
         val btnRefrsh: Button = findViewById(R.id.btnRefresh)
@@ -128,12 +138,18 @@ class MainActivity : AppCompatActivity() {
             viewPager.currentItem = viewPager.currentItem + 1
         }
 
-        var adapter = ImageAdapter(images, listOf("$0"))
+        var adapter = ImageAdapter(images, listOf("$0", "$1"))
         btnRefrsh.setOnClickListener {
-            getStockPrice(ethereum, "AAPL", ethereumAddress) { price ->
-                Log.i("test", "******Price: $price")
+            var prices = mutableListOf("$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0", "$0","$0")
+            prices[viewPager.currentItem] = "Searching..."
+            runOnUiThread {
+                adapter.updatePrices(prices)
+            }
+            getStockPrice(ethereum, stockSymbols.get(viewPager.currentItem), ethereumAddress) { price ->
+                Log.i("test", "******Price: $price for symbol: ${stockSymbols.get(viewPager.currentItem)}")
+                prices[viewPager.currentItem] = "$$price"
                 runOnUiThread {
-                    adapter.updatePrices(listOf(price))
+                    adapter.updatePrices(prices)
                 }
             }
         }
@@ -141,10 +157,8 @@ class MainActivity : AppCompatActivity() {
         viewPager.adapter = adapter
 
         btnAccept.setOnClickListener {
-//            showCustomToast("test")
             val intent = Intent(this, NFCAuthActivity::class.java)
             nfcAuthLauncher.launch(intent) // Start NFCAuthActivity
-            viewPager.currentItem = viewPager.currentItem + 1
         }
 
         val btnLogout: Button = findViewById(R.id.btnLogout)
@@ -172,13 +186,25 @@ class MainActivity : AppCompatActivity() {
         return (decoded[0] as Utf8String).value
     }
 
+    private fun getStockPriceAux(ethereum: Ethereum, symbol: String, userAddress: String, iterations: Int, onSuccess: (String) -> Unit) {
+        sleep(8000)
+        getStockTargetPrice(ethereum, userAddress) { price ->
+            if (price == "0.00" && iterations < 10) {
+                // every time we call the function to request price it sets it to 0 before getting the result
+                Log.i("test", "price is not yet available")
+                getStockPriceAux(ethereum, symbol, userAddress, iterations + 1, onSuccess)
+            } else if (iterations >= 10){
+                onSuccess("Not found")
+            } else {
+                Log.i("test", "Price is now available")
+                onSuccess(price)
+            }
+        }
+    }
+
     private fun getStockPrice(ethereum: Ethereum, symbol: String, userAddress: String, onSuccess: (String) -> Unit) {
         requestStockTargetPriceBySymbol(ethereum, symbol, userAddress) {
-            Log.i("test", "ok5")
-            //sleep(5000)
-            Log.i("test", "ok7")
-            getStockTargetPrice(ethereum, userAddress) { price ->
-                Log.i("test", "ok8 price is $price")
+            getStockPriceAux(ethereum, symbol, userAddress, 0) { price ->
                 onSuccess(price)
             }
         }
@@ -187,24 +213,20 @@ class MainActivity : AppCompatActivity() {
     private fun requestStockTargetPriceBySymbol(ethereum: Ethereum, symbol: String, userAddress: String, onSuccess: () -> Unit) {
         // Create the contract function (replace "yourFunctionName" with the actual function name)
         val function = Function(
-            "requestStockTargetPriceBySymbol", // Replace with your contract function name
+            "requestStockPrice", // Replace with your contract function name
             listOf(Utf8String(symbol)), // Replace with actual parameters
             emptyList() // If the function returns something, replace with the correct output type
         )
 
         // Encode the function call as transaction data
         val encodedFunction = FunctionEncoder.encode(function)
-        val currentGasPrice = BigInteger("1000000000") // Example: current gas price (1 Gwei)
-        val increasedGasPrice = currentGasPrice.multiply(BigInteger.valueOf(120)).divide(BigInteger.valueOf(100)) // Increase by 20%
 
         // Prepare transaction parameters
         val params: Map<String, Any> = mutableMapOf(
             "from" to userAddress, // Populate with the user's address
-            "to" to "0x700482dcac96d6b1dC17871202b7678B5de6bC8f", // Replace with the contract address
+            "to" to API_CONTRACT_ADDRESS, // Replace with the contract address
             "value" to "0x0", // Amount of Ether to send, 0 for calling function without sending Ether
             "data" to encodedFunction, // Encoded function call
-            //"gas" to "0x5460", // Gas limit in hexadecimal (e.g., 21000 gas limit)
-            //"gasPrice" to increasedGasPrice.toString(16) // Optional: Gas price in hexadecimal (e.g., 1 Gwei)
         )
 
         // Create an Ethereum request
@@ -219,21 +241,9 @@ class MainActivity : AppCompatActivity() {
                 is Result.Error -> {
                     Log.e("callContract", "Error calling contract: ${result.error.message}")
                 }
-
-                is Result.Success.Item -> {
-                    Log.i("test", "ok1")
-                    onSuccess()
-                }
-
-                is Result.Success.ItemMap -> {
-                    Log.i("test", "ok2")
-                    onSuccess()
-                }
-
-                is Result.Success.Items -> {
-                    Log.i("test", "ok3")
-                    onSuccess()
-                }
+                is Result.Success.Item -> onSuccess()
+                is Result.Success.ItemMap -> onSuccess()
+                is Result.Success.Items -> onSuccess()
             }
         }
     }
@@ -241,7 +251,7 @@ class MainActivity : AppCompatActivity() {
     private fun getStockTargetPrice(ethereum: Ethereum, userAddress: String, onSuccess: (String) -> Unit) {
         // Create the contract function (replace "yourFunctionName" with the actual function name)
         val function = Function(
-            "stock_target_price", // The public variable name in the contract
+            "stock_price", // The public variable name in the contract
             listOf(), // No input parameters
             listOf(object : TypeReference<Uint256>() {}) // Expect a Uint256 return type
         )
@@ -252,7 +262,7 @@ class MainActivity : AppCompatActivity() {
         // Prepare transaction parameters
         val params: Map<String, Any> = mutableMapOf(
             "from" to userAddress, // Populate with the user's address
-            "to" to "0x700482dcac96d6b1dC17871202b7678B5de6bC8f", // Replace with the contract address
+            "to" to API_CONTRACT_ADDRESS, // Replace with the contract address
             "value" to "0x0", // Amount of Ether to send, 0 for calling function without sending Ether
             "data" to encodedFunction // Encoded function call
         )
@@ -267,31 +277,116 @@ class MainActivity : AppCompatActivity() {
         Log.i("test", "before making a call")
         try{
             ethereum.connectWith(sendTransactionRequest) { result ->
-                Log.i("test", "ok9, result is $result")
+                Log.i("test", "result: $result")
                 when (result) {
                     is Result.Error -> {
                         Log.e("callContract", "Error calling contract: ${result.error.message}")
                     }
 
-                    is Result.Success.Item -> {
-                        Log.i("test", "ok10")
-                        onSuccess(decodeABIEncodedString(result.value))
-                    }
-
-                    is Result.Success.ItemMap -> {
-                        Log.i("test", "ok11")
-                        onSuccess(result.value.toString())
-                    }
-
-                    is Result.Success.Items -> {
-                        Log.i("test", "ok12")
-                        onSuccess(decodeABIEncodedString(result.value[0]))
-                    }
+                    is Result.Success.Item -> onSuccess(parseHexToDecimal(result.value))
+                    is Result.Success.ItemMap -> onSuccess(parseHexToDecimal(result.value.toString()))
+                    is Result.Success.Items -> onSuccess(parseHexToDecimal(result.value[0]))
                 }
             }
         } catch (e: Exception) {
             Log.e("test", "Error calling contract: ${e.message}")
         }
+    }
 
+    fun parseHexToDecimal(hexString: String): String {
+        // Remove the "0x" prefix if it exists
+        if (hexString.length == 0) {
+            return "0"
+        }
+        val cleanedHex = hexString.removePrefix("0x")
+        val decimalValue = BigInteger(cleanedHex, 16)
+        // Convert the hex string to a BigInteger
+        val decimalBigDecimal = BigDecimal(decimalValue)
+        // Divide the BigDecimal by 1000 and keep the precision
+        val dividedValue = decimalBigDecimal.divide(BigDecimal(1000))
+        // Format the result to 2 decimal places
+        return dividedValue.setScale(2, BigDecimal.ROUND_HALF_UP).toString()
+    }
+
+    private fun getStockPriceWei(ethereum: Ethereum, userAddress: String, onSuccess: (String) -> Unit) {
+        // Create the contract function (replace "yourFunctionName" with the actual function name)
+        val function = Function(
+            "requiredETHInWei", // The public variable name in the contract
+            listOf(), // No input parameters
+            listOf(object : TypeReference<Uint256>() {}) // Expect a Uint256 return type
+        )
+
+        // Encode the function call as transaction data
+        val encodedFunction = FunctionEncoder.encode(function)
+
+        // Prepare transaction parameters
+        val params: Map<String, Any> = mutableMapOf(
+            "from" to userAddress, // Populate with the user's address
+            "to" to API_CONTRACT_ADDRESS, // Replace with the contract address
+            "value" to "0x0", // Amount of Ether to send, 0 for calling function without sending Ether
+            "data" to encodedFunction // Encoded function call
+        )
+
+        // Create an Ethereum request
+        val sendTransactionRequest = EthereumRequest(
+            method = EthereumMethod.ETH_CALL.value, // this should be ETH_SEND_TRANSACTION FOR state changing transactions
+            params = listOf(params)
+        )
+
+        // Connect and send the transaction
+        try{
+            ethereum.connectWith(sendTransactionRequest) { result ->
+                Log.i("test", "result: $result")
+                when (result) {
+                    is Result.Error -> {
+                        Log.e("callContract", "Error calling contract: ${result.error.message}")
+                    }
+
+                    is Result.Success.Item -> onSuccess(result.value)
+                    is Result.Success.ItemMap -> onSuccess(result.value.toString())
+                    is Result.Success.Items -> onSuccess(result.value[0])
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("test", "Error calling contract: ${e.message}")
+        }
+    }
+
+    private fun buyStock(ethereum: Ethereum, symbol: String, userAddress: String, weiPrice: String, onSuccess: () -> Unit) {
+        // Create the contract function (replace "yourFunctionName" with the actual function name)
+        val function = Function(
+            "buyStock", // Replace with your contract function name
+            listOf(Utf8String(symbol)), // Replace with actual parameters
+            emptyList() // If the function returns something, replace with the correct output type
+        )
+
+        // Encode the function call as transaction data
+        val encodedFunction = FunctionEncoder.encode(function)
+
+        // Prepare transaction parameters
+        val params: Map<String, Any> = mutableMapOf(
+            "from" to userAddress, // Populate with the user's address
+            "to" to API_CONTRACT_ADDRESS, // Replace with the contract address
+            "value" to weiPrice, // Amount of Ether to send, 0 for calling function without sending Ether
+            "data" to encodedFunction, // Encoded function call
+        )
+
+        // Create an Ethereum request
+        val sendTransactionRequest = EthereumRequest(
+            method = EthereumMethod.ETH_SEND_TRANSACTION.value, // this should be ETH_SEND_TRANSACTION FOR state changing transactions
+            params = listOf(params)
+        )
+
+        // Connect and send the transaction
+        ethereum.connectWith(sendTransactionRequest) { result ->
+            when (result) {
+                is Result.Error -> {
+                    Log.e("callContract", "Error calling contract: ${result.error.message}")
+                }
+                is Result.Success.Item -> onSuccess()
+                is Result.Success.ItemMap -> onSuccess()
+                is Result.Success.Items -> onSuccess()
+            }
+        }
     }
 }
