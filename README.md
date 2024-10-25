@@ -28,6 +28,8 @@ To securely connect this data with our smart contracts, we leverage Chainlink Or
 - **Polygon API Documentation:**: https://polygon.io/docs/stocks/getting-started
 - **Chainlink Oracles Documentation:**: https://docs.chain.link/any-api/get-request/examples/single-word-response/
 
+## How the Ring Works and What is Stored in It
+The RingOfRings holds the user’s wallet private key, making transactions easy and secure. When the user wants to buy a stock, they log in to MetaMask, then use the ring to check the private key stored on it. The ring signs a message, and from that, the public key is extracted and compared with the public key from MetaMask. If they match, the transaction goes through; if not, it’s rejected. This adds an extra layer of security to make sure everything is legit.
 
 ## TinderStock Diagrams
 
